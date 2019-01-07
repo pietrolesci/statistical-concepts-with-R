@@ -1,0 +1,151 @@
+# Confidence Interval Estimation
+
+\begin{displayquote}
+\rule{\linewidth}{0.7pt}\\
+\small \itshape
+In this chapter we implement stochastics simulation to empirically validate some simple theoretical propositions in the context of confidence interval estimation.\\
+\rule{\linewidth}{0.7pt}
+\end{displayquote}
+\bigskip
+
+## Frequentist interpretation of Confidence Intervals
+In Chapter 2, we have seen how a parameter $\theta$ could be estimated by the value $t = T(x)$ of an estimator $T$. In the context of this chapter, we will also refer to such estimates as _point estimates_. As a rule, an estimate $t$ differs from the parameter $\theta$ to be estimated: estimator will never be perfect. Using the confidence regions described in this chapter, we can quantify the possible difference between the estimator $T$ and $\theta$. This leads to an interval estimate $[L(x), R(x)]$, with the interpretation that $\theta$ has a high probability of lying in this interval. This interval, however, depending on the sample has a different value, thus it is a random interval. In the context of Bayesian statistic the opposite occurs: the interval is not random, the parameter $\theta$ is.
+
+The definition of a confidence region (interval in case $\Theta\subseteq \mathbb{R}$) is the following
+\begin{displayquote}
+    \textbf{Confidence region}: Let $X$ be a random variable with a probability distribution that depends on a parameter $\theta \in \Theta$. A map $X \rightarrow G_X$ whose codomain is the set of subsets of $\Theta$ is a confidence region for $\theta$ of confidence level $1-\alpha$ if $$P_\theta\left(\theta \in G_X\right) \geq 1-\alpha$$ for all $\theta \in \Theta$.
+\end{displayquote}
+In other words, a confidence region is a \say{stochastic subset} $G_X$ of $\theta$ that has a high probability of containing the true parameter $\theta$. Because we do not know beforehand which value of $\theta$ is the true value, the condition in the definition holds for all values of $\theta$: under the assumption that $\theta$ is the true value, this true value must have probability at least $1-\alpha$ of being in $G_X$. After $X = x$ has been observed, the stochastic set $G_X$ changes into a nonstochastic subset $G_x$ of $\theta$. However, as said above, $G_x$ is sample-dependent. 
+
+Generally, $\alpha$ is taken small. The probability statement that the realization $G_x$ contains the true value $\theta$ with probability at least $1-\alpha$ can easily be interpreted incorrectly. In the frequentist view, the true value of $\theta$ is fixed; the realized confidence region $G_x$ is nonstochastic. Consequently, the true $\theta$ either lies in the confidence region or does not. Unfortunately, we do not know which of the two cases occurs. Therefore, the probability statement can be interpreted in the sense that if we, for example, carry out the experiment that gives $X$ independently 100 times and compute the confidence region $G_x$ 100 times, then we may expect that (at least) approximately $100(1-\alpha)$ of the regions will contain the true $\theta$ [@ims].
+
+Sometimes the center of the confidence interval is exactly the point estimate $T = T(X)$ for $\theta$. We then also write the interval in the form $\theta = T \pm \eta$, with $\eta = 1/2 \left(R(X) - L(X)\right)$ half the length of the interval. In other case, the interval is intentionally chosen asymmetric around the used point estimate. Below we will provide an example using the common problem of estimating the unknown mean of normal distribution.
+
+
+### Example: Normal distribution
+Let $X = (X_1 , \dots, X_n)$ be a sample from the normal $\mathcal{N}(\mu, \sigma^2)$ distribution with unknown $\mu \in \mathbb{R}$ and known variance $\sigma^2=9$. The natural estimator (unbiased and consistent) for $\mu$ is $\bar{X}$. We know that $\bar{X} \sim \mathcal{N}(\mu, \sigma^2/n)$, therefore 
+$$\sqrt{n}\frac{\bar{X}-\mu}{\sigma} \sim \mathcal{N}(0,1)$$
+We compute the probabilities as follows:
+$$P_\mu \left(z_{\frac{\alpha}{2}} \leq \sqrt{n}\frac{\bar{X}-\mu}{\sigma} \leq z_{1-\frac{\alpha}{2}}\right)$$
+
+where $z_{\alpha}$ is the $\alpha$-quantile of the standard normal distribution, that is the number $z$ such that $F(z) = \alpha$, with $F$ being the cumulative distribution function of the standard normal distribution. 
+Let $\mu=10$ and $\alpha = 0.05$. We want to compute the value $z$ such that $F(z) = \alpha/2$ and $F(z) = 1- \alpha/2$. This can be achieved in R with the function `qnorm()`
+```{r}
+alpha <- 0.05
+
+# find z
+qnorm(c(alpha/2, 1-alpha/2))
+```
+Now we have discovered the values to plug-in in the formula in place of $z_{\frac{\alpha}{2}}$ and $z_{1-\frac{\alpha}{2}}$.
+Now we observe that
+$$P_\mu \left(z_{\frac{\alpha}{2}} \leq \sqrt{n}\frac{\bar{X}-\mu}{\sigma} \leq z_{1-\frac{\alpha}{2}}\right) = P_\mu \left(\sqrt{n}\frac{\bar{X}-\mu}{\sigma} \leq z_{1-\frac{\alpha}{2}}\right) - P_\mu\left(\sqrt{n}\frac{\bar{X}-\mu}{\sigma}  \leq z_{\frac{\alpha}{2}}\right)$$
+We can rearrage the inequalities to obtain an interval for $\mu$:
+$$\bar{X} - z_{\alpha/2}\frac{\sqrt{n}}{\sigma} \leq \mu \leq \bar{X} + z_{\alpha/2}\frac{\sqrt{n}}{\sigma}$$
+Using the often \say{abused} notation $z_{\alpha/2}$, which it is interpreted $|z_{\alpha/2}|$ -- what we need is to subtract (on the left) and add (to the right) 1.95. The key point is knowing how our estimator is distributed! Once we have a distribution, everything is easily computable. Given that we know $z_{\alpha/2}$, to compute $\alpha/2$ we can use the function `pnorm()` in R
+```{r}
+z <- 1.95
+pnorm(z)
+```
+which is approximately $1 - 0.05/2$.
+
+To prove that indeed the __coverage__ of the confidence interval is $95\%$ -- that is given 100 iid samples $X$, when we compute the confidence region $G_x$ for each sample, we want to prove that (at least) approximately 95 of the regions contain the true $\theta$. We will generate many samples of size $n=20$ from the $\mathcal{N}(10, 9)$ distribution, compute the mean, the confidence interval and we will count how many times the interval contains the true value of $\mu$.
+```{r, fig.asp=0.4, fig.width=9}
+alpha <- 0.05
+n <- 20
+mu <- 10
+sigma2 <- 9
+z <- qnorm(1 - (alpha/2))
+m <- 10^4
+
+right_bound <- c()
+left_bound <- c()
+
+for (i in 1:m) {
+    sample <- rnorm(n, mu, sqrt(sigma2))
+    sample_mean <- mean(sample)
+    right_bound <- c(right_bound, sample_mean + z*sqrt(sigma2)/sqrt(n))
+    left_bound <- c(left_bound, sample_mean - z*sqrt(sigma2)/sqrt(n))
+}
+
+sample_index <- sample(1:m, 200)
+
+tibble(right = right_bound[sample_index], 
+       left = left_bound[sample_index], 
+       index = sample_index) %>% 
+    ggplot(aes(x = index, y = right)) +
+        geom_segment(aes(xend = index, yend = left)) +
+        geom_hline(yintercept = mu, colour = 'red', size = 1.5) +
+        labs(x = 'Simulation index',
+             y = 'Confidence interval') 
+
+check <- left_bound < mu & mu < right_bound
+
+sum(check)/length(check)
+```
+which is approximately $1-\alpha$.
+
+Detailed explanation of the steps: 
+
+* Define the parameters
+* Initialize the container for the upper and lower bounds of the inteval
+* For each iteration, generate a sample, compute the mean, compute the right and left bound of the interval and append it to the container
+* For a better visualization sample 200 integer between 1 and _m_ to be used as indeces to subset the vectors `right_bound` and `left_bound`
+* Put everything into a tibble so that we can feed it to ggplot for plotting
+
+As said above, the most important thing is to know how the estimator is distributed. This allows us to compute the $\alpha$ quantiles. In most cases, thus, we rely on large sample approximation to obtain confidence intervals, especially when the estimator is some fancy function of the data (e.g. a neural network) and we do not know how it is distributed, or it is complicated to obtain even an approximate distribution. We know that for $n$ large $\bar{X}$ will tend to be distributed normally, regardless the distribution which produced the sample. Therefore, in the next example we will exploit this fact to compute the confidence interval for the estimator of the parameter $p$ of a bernoulli distribution.
+
+
+### Example: Bernoulli distribution
+Assume that $X_1, \dots, X_n \stackrel{\small i.i.d.}{\sim} Ber(p)$. Then $\bar{X}$ is an estimator for $p$. How it is distrubuted? We know from theory that 
+\begin{align*}
+    P\left(\bar{X}_n = \frac{t}{n}\right) &= P\left(\underbrace{X_1 + \dots + X_n}_{Bin(n, p)} = t\right), \qquad t \in \{0, 1, \dots, n\}\\
+    &= \frac{n!}{t! (n-t)!} p^t (1-p)^{n-t}
+\end{align*}
+As $n\to\infty$, the sampling distribution of $\bar{X}$ tends to resemble $\mathcal{N}(\mu, \sigma^2/n)$ where $\mu = p$ and $\sigma^2 = p(1-p)$. Therefore, we will approximate the confidence interval using the quantiles from the distribution
+$$\bar{X} \sim \mathcal{N}\left(p, \frac{p(1-p)}{n}\right)$$
+Therefore the approximate confidence interval becomes
+$$p \in \left[\bar{X} - z_{\alpha/2}\sqrt{\frac{ \bar{X} (1 - \bar{X})}{n}}, \quad \bar{X} + z_{1-\alpha/2}\sqrt{\frac{ \bar{X} (1 - \bar{X})}{n}}\right]$$
+```{r, fig.asp=0.4, fig.width=9}
+alpha <- 0.05
+n <- 20
+p <- 0.8
+z_norm <- qnorm(1 - (alpha/2))
+m <- 10^4
+
+right_bound <- c()
+left_bound <- c()
+
+for (i in 1:m) {
+    sample <- rbinom(n = n, size = 1, prob = p)
+    sample_mean <- mean(sample)
+    
+    approx_interval <- z_norm * sqrt(sample_mean*(1-sample_mean)/n)
+    
+    right_bound <- c(right_bound, sample_mean + approx_interval)
+    left_bound <- c(left_bound, sample_mean - approx_interval)
+}
+
+sample_index <- sample(1:m, 200)
+
+tibble(right = right_bound[sample_index], 
+       left = left_bound[sample_index], 
+       index = sample_index) %>% 
+    ggplot(aes(x = index, y = right)) +
+        geom_segment(aes(xend = index, yend = left)) +
+        geom_hline(yintercept = p, colour = 'red', size = 1.5) +
+        labs(x = 'Simulation index',
+             y = 'Confidence interval') 
+
+check <- left_bound < p & p < right_bound
+
+sum(check)/length(check)
+```
+Detailed explanation of the steps: 
+
+* Define the parameters
+* Initialize the container for the upper and lower bounds of the inteval
+* For each iteration, generate a sample, compute the mean, compute the right and left bound of the interval and append it to the container
+* For a better visualization sample 200 integer between 1 and _m_ to be used as indeces to subset the vectors `right_bound` and `left_bound`
+* Put everything into a tibble so that we can feed it to ggplot for plotting
+
+As we can see, in this case the empirical proportion of intervals that contain the true value $p$ is more distant from $1-\alpha$ than what we obtained in the example above. This is due to the fact that we are approximating the distribution of the estimator for $p$, $\bar{X}$ using an asymptotic result with $n=20$. However, we expect that as $n$ grows, the empirical $1-\alpha$ will converge to the true value.

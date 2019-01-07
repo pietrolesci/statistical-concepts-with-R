@@ -1,0 +1,377 @@
+# Hypotheses testing
+
+\begin{displayquote}
+\rule{\linewidth}{0.7pt}\\
+\small \itshape
+In this chapter we will implement stochastic simulations to empirically validate some simple theoretical propositions about test of hypotheses. We will do this exploiting the computational capabilities of R.\\
+\rule{\linewidth}{0.7pt}
+\end{displayquote}
+\bigskip
+
+## Frequentist Hypotheses Testing
+The decision between conflicting hypotheses is based on a suitable statistical model for the observation X. The hypotheses are coded in parameter values that index the probability distributions in the statistical model. Here, we will restrict ourselves to two hypotheses. The parameter $\theta$ belongs either to a set $\Theta_0$ corresponding to the one hypothesis or to the complement $\Theta_1 = \Theta \setminus \Theta_0$. We call the hypothesis $H_0 : \theta \in \Theta_0$ the \textit{null} hypothesis and the hypothesis $H_1 : \theta \in \Theta_1$ the \textit{alternative} hypothesis.
+
+In the standard approach to testing (followed by most \say{users} of statistics), the null and alternative hypotheses are not treated symmetrically. We, in particular, want to know whether the alternative hypothesis is correct. If the data do not give sufficient indication to support this, this does not necessarily imply that the alternative hypothesis is incorrect (and the null hypothesis correct); it is also possible that there is not sufficient proof for either of the hypotheses. The statistical analysis can thus lead to two conclusions:
+\begin{itemize}
+    \item Reject $H_0$ (and accept $H_1$ as being correct)
+    \item Do not reject $H_0$ (but do not accept $H_0$ as being correct)
+\end{itemize}
+The first is a strong conclusion, the second is not truly a conclusion. The second should be seen as the statement that more information is needed to reach a conclusion. By basing our statements concerning the hypotheses on our observations, we can make two types of mistakes, corresponding to mistakenly coming to one of the two possible conclusions:
+\begin{itemize}
+    \item A \textit{type I error} consists of rejecting $H_0$ when it is correct
+    \item A \textit{type II error} consists of not rejecting $H_0$ when it is incorrect
+\end{itemize}
+A type I error corresponds to falsely choosing the strong conclusion. This is very undesirable. A type II error corresponds to falsely choosing the weak conclusion. This is also undesirable, but since the weak conclusion is not truly a conclusion, it is not as bad. Because of the asymmetric handling of the hypotheses $H_0$ and $H_1$ when choosing a test, we should not attach too much value to not rejecting $H_0$. It is therefore of great importance to choose the null hypothesis and the alternative hypothesis wisely. In principle, we choose the statement we want to show as the alternative hypothesis. We then argue for $H_0$: we only reject $H_0$ if there is strong evidence against it.
+
+Let's give the definition of a statistical test:
+\begin{displayquote}
+    \textbf{Statistical test}: Given a null hypothesis $H_0$, a statistical test consists of a set $R_T$ (where $T$ identifies the test statistic) of possible values for the observation $X$, the \textit{critical region}. Suppose that we have an observation $x$. If $x \in R_T$, we reject $H_0$; if $x \in \bar{R}_T$ (where the bar represents the complement), we do not reject $H_0$.
+\end{displayquote}
+When $X = (X_1, \dots, X_n)$ is a vector of observations, in particular, it is often difficult to decide based on $X$ whether the statement of the alternative hypothesis can be true. We therefore often summarize the data in a test statistic. A test statistic is a real-valued quantity $T = T(X)$ based on the data that gives information on the correctness of the null and alternative hypotheses; so the test statistic does __not__ depend on the unknown parameter and, importantly, we know its distribution.
+
+The critical region $R_T$ is often of the form $\{x: T(x) \in R_T\}$, thus it is a subset of the codomain of the test statistic -- or, simply, a subset of the space where $X$ \say{lives}. Therefore the critical region depends on the test statistic, which in turn depends on the sample and thus is random. A test is therefore random. In general, another test statistic $T'$ leads to a different set $R_{T'}$. However, the critical region $R$ can be the same in both cases, i.e. the same critical region $R$ can correspond to two different test statistics.
+
+In testing $H_0: \theta \in \Theta_0$ against $H_1: \theta \in \Theta_1$, when the true value of $\theta$ belongs to $\Theta_0$ the null hypothesis is true. If in that case $x \in R_T$ then we falsely reject $H_0$ and make a type I error. For a good test, the probability $P_\theta\left(X \in R_T\right)$ for $\theta\in\Theta_0$ must therefore be small. On the other hand, when the null hypothesis is false this probability needs to be large. The quality of a test can therefore be measured using the function $P_\theta\left(X \in R_T\right)$. In particular,
+\begin{itemize}
+    \item[] $P_\theta(X\in R_T; \theta\in\Theta_0) = \alpha$
+    \item[] $P_\theta(X\notin R_T; \theta\in\Theta_1) = \beta$
+\end{itemize}
+It is impossible to get $\alpha=\beta=0$. Theory gives the tools to choose a test such that, given $\alpha$, we minimize $\beta$. The quantity
+$$P_\theta(X\in R_T; \theta\in\Theta_1) = 1-\beta$$
+is called the __power__ of a test. In general,
+\begin{displayquote}
+    \textbf{Power function}: The power function of a test with critical region $R_T$ is 
+    $$Q_T(\theta) = P_\theta(X \in R_T)$$
+\end{displayquote}
+Thus, it is possible to define the goodness of a test based on the power function: we are looking for a critical region for which the power function takes on \say{small values} (close to 0) when $\theta\in\Theta_0$, and \say{large values} (close to 1) when $\theta\in\Theta_1$.
+
+We now define another quantity of interest of a test
+\begin{displayquote}
+    \textbf{Size}: The size of a test with critical region $R_T$ with power function $Q_T(\theta)$ is the number 
+    $$\alpha = \sup_{\theta\in\Theta_0} Q_T(\theta)$$
+A test has significance level $\alpha_0$ if $\alpha \geq \alpha_0$.
+\end{displayquote}
+This quantity is important because usually we first choose a fixed number $\alpha_0$, the significance level, and then we use tests of level $\alpha_0$. In other words, we only allow tests whose power function $Q_T(\theta)$ under the null hypothesis is at most $\alpha_0$:
+$$\sup_{\theta\in\Theta_0}Q_T(\theta) \leq \alpha_0$$
+This ensures that the probability of a type I error is at most $\alpha_0$. However, choosing $\alpha_0$ extremely small is rare. We can only achieve this by making $R_T$ very small. In doing this, however, the power function for $\theta\in\Theta_1$ also becomes small. The probability of a type II error, $P_\theta(X \notin R_T) = 1 - Q_T(\theta)$, for $\theta\in\Theta_1$, therefore becomes very large, which is also undesirible. The requirements for making both the type I and type II errors small work against each other. Therefore we usually do not treat the two types of errors symmetrically: usually the type I error is given more importance and thus the goal is to set $\alpha_0$ small and find the test that minimises $\beta$, given that $\alpha_0$.
+
+In practice, $\alpha_0$ is often chosen equal to the magical number 0.05. With this choice 1 out of 20 times we will falsely reject the null hypothesis (making a type I error). If the probability of making a type II error is too large, the test is, of course, not very meaningful, because we then almost never reject $H_0$. More formally, given the level $\alpha_0$, we prefer a test of level $\alpha_0$ with the greatest possible power function $Q_T(\theta)$ for $\theta\in\Theta_1$.
+
+Under this assumption, for a given level $\alpha_0$, we prefer a test with critical region $R_T$ to a test with critical region $R_{T'}$ if both have level $\alpha_0$ and the first has a greater power function than the second for all $\theta\in\Theta_1$:
+$$\sup_{\theta\in\Theta_0}Q_i(\theta), \quad i=T,T'$$
+__and__
+$$Q_T(\theta) \geq Q_{T'}(\theta), \quad \forall\theta\in\Theta_1$$
+with strict inequality for at least one $\theta\in\Theta_1$. We call the test with critical region $R_T$ _more powerful_ than the test with critical region $R_{T'}$ in some $\theta\in\Theta_1$ if $Q_T > Q_{T'}$. We call the test with critical region $R_T$ _uniformly more powerful_ if the inequality holds for all $\theta\in\Theta_1$.
+
+Below we will perform examples of few important kind of tests on the normal distribution. In what follows we will refer to the distribution used in chapter 1, but with a more realistic variance: 225 -- it comes from the fact that we want to assign high probability to the range $170 \pm 15$ -- and sample size $n=5$ that is $X_1,\dots,X_5 \stackrel{\small i.i.d.}{\sim} \mathcal{N}(170, 225)$.
+
+
+
+### One-sided tests of Population Mean with Known Variance
+The null hypothesis of the lower tail test of the population mean can be expressed as follows:
+\begin{align*}
+    H_0 &: \mu \geq \mu_0\\ 
+    H_1 &: \mu < \mu_0
+\end{align*}
+where $\mu_0$ is the hypothesized upper bound of the true population mean $\mu$ -- we would like to find enough evidence to reject $H_0$. Let us define the test statistic $z$, under the null hypothesis, in terms of the sample mean, the sample size and the population standard deviation
+$$z = \sqrt{n}\frac{\bar{X} - \mu_0}{\sigma}$$
+Then the null hypothesis of the lower tail test is to be rejected if $z \in R_z := (-\infty, z_\alpha)$ , where $z_\alpha$ is the $100(1 - \alpha)$ percentile of the standard normal distribution.
+
+Suppose we want to test if the _average_ height of italian has an upper bound at 195cm. We set $\mu_0 = 195$. We will perform the test $m$ times, each time for a sample of size $n=5$.
+```{r}
+m <- 1000
+n <- 5
+mu <- 170
+sigma2 <- 225
+alpha <- 0.05
+mu_0 <- 195
+
+z <- c()
+
+for (i in 1:m) {
+    sample <- rnorm(n, mu, sqrt(sigma2))
+    sample_mean <- mean(sample)
+    z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+}
+
+z_alpha <- qnorm(alpha)
+reject <- z < z_alpha
+
+tibble(rejections = reject) %>% 
+    ggplot(aes(x = rejections, y = (..count..)/sum(..count..))) + 
+        geom_bar() +
+        geom_text(aes(label = (..count..)/sum(..count..)*100), 
+                  stat = 'count', 
+                  vjust = -0.25) +
+        labs(x = 'Reject?',
+             y = 'Percentage')
+```
+Detailed explanation of the steps: 
+
+* Define the parameters 
+* Initialize the container for the test statistic
+* For each iteration, generate a sample, compute the mean, compute the test statistic and append it to the container
+* Compute the quantile 0.05 for the standard normal distribution
+* For each iteration we obtained a value of the test statistic, thus we check how many times it falls in the rejection region
+
+Obviously, we expect that the null hypothesis must be rejected, because we know that the true $\mu = 170$. This is confirmed by the test: indeed, for $m=1000$ tests we performed, the test rejected $H_0$ `r sum(reject) / length(reject)*100`$\%$ of the cases. We say that at a $\alpha=0.05$ significance level we do reject the null -- that is, performing the test infinite times, $95\%$ of the times we would not reject the null.
+
+
+Let's now perform the opposite check, that is let's test that 145cm is a lower bound for the _average_ population height in Italy. We hope to have enough evidence to reject the null.
+\begin{align*}
+    H_0 &: \mu \leq \mu_0 \\ 
+    H_1 &: \mu > \mu_0
+\end{align*}
+In the previous case the rejection region was $(-\infty, -z_\alpha)$. In this case it is $(z_{1-\alpha}, +\infty)$ the only three line of code we change are (the rest is not shown)
+```{r, eval=FALSE}
+mu_0 <- 145
+z_alpha <- qnorm(1-alpha)
+reject <- z > z_alpha
+```
+
+```{r, echo=FALSE}
+m <- 1000
+n <- 5
+mu <- 170
+sigma2 <- 225
+alpha <- 0.05
+mu_0 <- 145
+
+z <- c()
+
+for (i in 1:m) {
+    sample <- rnorm(n, mu, sqrt(sigma2))
+    sample_mean <- mean(sample)
+    z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+}
+
+z_alpha <- qnorm(1-alpha)
+reject <- z > z_alpha
+
+tibble(rejections = reject) %>% 
+    ggplot(aes(x = rejections, y = (..count..)/sum(..count..))) + 
+        geom_bar() +
+        geom_text(aes(label = (..count..)/sum(..count..)*100), 
+                  stat = 'count', 
+                  vjust = -0.25) +
+        labs(x = 'Reject?',
+             y = 'Percentage')
+```
+The description of the algorithm is the same as above with the only difference that now we changed `qnorm(alpha)` into `qnorm(1-alpha)` and swapped the sign that defines the `reject` variable.
+
+As we can see, `r (sum(reject) / length(reject))*100`$\%$ of the times we reject the null hypothesis as expected.
+
+
+
+### Two-sided tests of Population Mean with Known Variance
+The null hypothesis of the two-tailed test of the population mean can be expressed as follows:
+\begin{align*}
+    H_0 &: \mu = \mu_0\\ 
+    H_1 &: \mu \neq \mu_0
+\end{align*}
+where $\mu_0$ is a hypothesized value of the true population mean $\mu$. The definition of the test statistic is the same as above.
+The rejection region is now defined as the interval $R_z := (-\infty, z_{\alpha/2}) \cup (z_{1-\alpha/2}, +\infty)$. Let's suppose we want to check whether the average height is 160cm. The only three line of code we change are (the rest is not shown)
+```{r, eval=FALSE}
+mu_0 <- 160
+z_alpha <- qnorm(c(alpha/2, 1-alpha/2))
+reject <- z < z_alpha[1] | z > z_alpha[2]
+```
+
+```{r, echo=FALSE}
+m <- 1000
+n <- 5
+mu <- 170
+sigma2 <- 225
+alpha <- 0.05
+mu_0 <- 160
+
+z <- c()
+
+for (i in 1:m) {
+    sample <- rnorm(n, mu, sqrt(sigma2))
+    sample_mean <- mean(sample)
+    z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+}
+
+z_alpha <- qnorm(c(alpha/2, 1-alpha/2))
+reject <- z < z_alpha[1] | z > z_alpha[2]
+
+tibble(rejections = reject) %>% 
+    ggplot(aes(x = rejections, y = (..count..)/sum(..count..))) + 
+        geom_bar() +
+        geom_text(aes(label = (..count..)/sum(..count..)*100), 
+                  stat = 'count', 
+                  vjust = -0.25) +
+        labs(x = 'Reject?',
+             y = 'Percentage')
+```
+Detailed explanation of the steps: 
+
+* Define the parameters 
+* Initialize the container for the test statistic
+* For each iteration, generate a sample, compute the mean, compute the test statistic and append it to the container
+* Compute the quantile 0.05 and 0.95 for the standard normal distribution and store it into a two dimensional vector
+* For each iteration we obtained a value of the test statistic, thus we check how many times it falls in the rejection region (note the `|` (or) between the two `z_alpha`s)
+
+As we may see, there is no clear-cut decision here. What is the problem? What parameters are resposible for this? The answer is $\sigma^2$, $n$, and $\alpha$. Let's now see how the decision changes if we modify $\alpha$
+```{r, fig.asp=0.4, fig.width=8}
+m <- 1000
+n <- 5
+mu <- 170
+sigma2 <- 225
+alpha <- seq(0.01, 0.10, 0.0001)
+mu_0 <- 160
+
+rejection <- c()
+
+for (a in alpha) {
+    z <- c()
+    
+    for (i in 1:m) {
+        sample <- rnorm(n, mu, sqrt(sigma2))
+        sample_mean <- mean(sample)
+        z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+    }
+    
+    z_alpha <- qnorm(c(a/2, 1-a/2))
+    reject <- z < z_alpha[1] | z > z_alpha[2]
+    rejection <- c(rejection, sum(reject)/length(reject))
+}
+
+tibble(alpha = alpha, rejections = rejection) %>% 
+    ggplot(aes(x = alpha, y = rejection)) + 
+        geom_line() +
+        geom_vline(xintercept = 0.05, colour = 'red', size = 1) +
+        labs(x = 'alpha',
+             y = 'Prob. of rejecting')
+```
+When $\alpha$ becomes bigger we have some improvements, but still we reject the false null less than $50\%$ of the times. Let's see what happens if we modify $n$, given everything remains the same
+```{r, fig.asp=0.4, fig.width=9}
+m <- 1000
+sizes <- seq(10, 100, 0.1)
+mu <- 170
+sigma2 <- 225
+alpha <- 0.05
+mu_0 <- 160
+
+rejection <- c()
+
+for (n in sizes) {
+    z <- c()
+    
+    for (i in 1:m) {
+        sample <- rnorm(n, mu, sqrt(sigma2))
+        sample_mean <- mean(sample)
+        z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+    }
+    
+    z_alpha <- qnorm(c(alpha/2, 1-alpha/2))
+    reject <- z < z_alpha[1] | z > z_alpha[2]
+    rejection <- c(rejection, sum(reject)/length(reject))
+}
+
+tibble(alpha = sizes, rejections = rejection) %>% 
+    ggplot(aes(x = sizes, y = rejection)) + 
+        geom_line() +
+        labs(x = 'n',
+             y = 'Prob. of rejecting')
+```
+As we may assess from the graph, the sample size has a huge impact on the rejection of the null. If the $\alpha$ is not adjusted for the sample size, it can happen that we reject the null even when it is true! Let's assess what happend when the variances changes
+```{r, fig.asp=0.4, fig.width=9}
+m <- 1000
+n <- 5
+mu <- 170
+variances <- seq(25, 225, 0.5)
+alpha <- 0.05
+mu_0 <- 160
+
+rejection <- c()
+
+for (sigma2 in variances) {
+    z <- c()
+    
+    for (i in 1:m) {
+        sample <- rnorm(n, mu, sqrt(sigma2))
+        sample_mean <- mean(sample)
+        z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+    }
+    
+    z_alpha <- qnorm(c(alpha/2, 1-alpha/2))
+    reject <- z < z_alpha[1] | z > z_alpha[2]
+    rejection <- c(rejection, sum(reject)/length(reject))
+}
+
+tibble(alpha = variances, rejections = rejection) %>% 
+    ggplot(aes(x = variances, y = rejection)) + 
+        geom_line() +
+        labs(x = 'variance',
+             y = 'Prob. of rejecting')
+```
+The variance has a huge impact on the rejection of the null: smaller variance brings to an easier rejection of the null. To summarize, the conclusion with this test would be that we do not have enough information to distinguish values around 170cm. We need more evidence: collect more observation from the population! To draw the power function of this test, we will make $\mu_0$ change, given everything remains the same
+```{r}
+m <- 1000
+n <- 5
+mu <- 170
+sigma2 <- 225
+alpha <- 0.05
+mu_0s <- seq(100, 200, 0.1)
+
+rejection <- c()
+
+for (mu_0 in mu_0s) {
+    z <- c()
+    
+    for (i in 1:m) {
+        sample <- rnorm(n, mu, sqrt(sigma2))
+        sample_mean <- mean(sample)
+        z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+    }
+    
+    z_alpha <- qnorm(c(alpha/2, 1-alpha/2))
+    reject <- z < z_alpha[1] | z > z_alpha[2]
+    rejection <- c(rejection, sum(reject)/length(reject))
+}
+
+tibble(mu_0 = mu_0s, rejections = rejection) %>% 
+    ggplot(aes(x = mu_0, y = rejection)) + 
+        geom_line() +
+        labs(x = 'mu_0',
+             y = 'Prob. of rejecting')
+```
+We can assess that the test is not perfect: the minimum probability of rejecting is not achieved at $\mu_0=170$ as one would have expected. For curiosity, let's see how it behaves if we plug-in the true value for the mean $\mu_0=170$, given everything remains the same (code for the test not reported since it is equal to the one above)
+```{r, echo=FALSE}
+m <- 1000
+n <- 25
+mu <- 170
+sigma2 <- 225
+alpha <- 0.05
+mu_0 <- 170
+
+z <- c()
+
+for (i in 1:m) {
+    sample <- rnorm(n, mu, sqrt(sigma2))
+    sample_mean <- mean(sample)
+    z <- c(z, sqrt(n) * (sample_mean - mu_0) / sqrt(sigma2))
+}
+
+z_alpha <- qnorm(c(alpha/2, 1-alpha/2))
+reject <- z < z_alpha[1] | z > z_alpha[2]
+
+tibble(rejections = reject) %>% 
+    ggplot(aes(x = rejections, y = (..count..)/sum(..count..))) + 
+        geom_bar() +
+        geom_text(aes(label = (..count..)/sum(..count..)*100), 
+                  stat = 'count', 
+                  vjust = -0.25) +
+        labs(x = 'Reject?',
+             y = 'Percentage')
+```
+As we may appreciate, the test do __not__ reject almost $95\%$ of the times, this confirms the proper functioning of the test, although being weak -- in the sense of not very powerful. 
+
+## Conclusions {-}
+This chapter ends this brief collection of statistical concepts that we tried to visualize and implement with R.
+
+
+## References {-}
+

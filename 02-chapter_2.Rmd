@@ -1,0 +1,656 @@
+# Frequentist Inference Concepts
+
+\begin{displayquote}
+\rule{\linewidth}{0.7pt}\\
+\small \itshape
+In this chapter we will implement stochastic simulations to empirically validate some simple theoretical propositions. We will do this exploiting the computational capabilities of R. In particular, this chapter will focus on 3 theoretical concepts: unbiasedness, consistency, and the Central Limit Theorem (CLT) in the context of estimators. We will also discuss Maximum Likelihood Estimation.\\
+\rule{\linewidth}{0.7pt}
+\end{displayquote}
+\bigskip
+
+## Introduction
+Statistics is the science of learning from experience, particularly experience that arrives a little bit at a time [@Efron2016]. Statistical inference usually begins with the assumption that some probability model, the \say{true} data generating process, has produced the observed data $x = (x_1,...,x_n)$. 
+Indicate with $X = (X_1,...,X_n)$ the $n$ independent draws from the unknown probability distribution, i.e. our model, $\mathcal{P}=\left\{P_\theta, \theta\in\Theta\right\}$. Once a realization $X=x$ has been observed, the statisticians want to infer some property (or properties) of the unknown distribution $P_\theta$, parametrised by $\theta$. In other words, they want to use the data to \say{discover} the \say{hidden} properties of the data generating process.
+
+Various approaches to probability lead to different inferencial \say{philosophies}. The \textbf{frequentist inference}, the one treated in this book, is associated with the frequentist interpretation of probability.
+The frequentist approach to probability is based on the possibility of repeating an experiment under equivalent conditions, producing statistically independent results [@Prob2009]. The probability is intended as the \textit{frequency} of success over the $n$ experiment performed -- to refer to the above paragraph, we may think of the experiment to be the $n$ independent draws from the probability distribution. 
+
+The probability of the event of interest $A$, labelled \say{success}, is the ratio: 
+$$f_n(A) = \frac {\text{successes in $n$ experiments}}{n}$$
+and is called \textit{frequency} of success over $n$ experiments. Obviously, $f_n(A)$ fluctuates when $n$ changes. The \say{empirical law of chance} states that as $n$ gets bigger, the frequency becomes more stable, suggesting the existence of the limit that defines the concept of probability in the frequentist framework: 
+$$P(A) =  \lim_{n\to \infty} f_n(A)$$
+Empirically, however, infinite experiments (samples) are not possible, but the issue is solved by accepting that for $n$ sufficiently large $f_n(A)$ is a good approximation for $P(A)$.
+
+More generally, we are interested in \textbf{understanding} certain features of a reference population -- as opposed to \textit{predicting} -- based only on a sample (or samples): it is like inferring the objects in a photo based on the few pixels we are able to look at. Building a statistical model serves the purpose of generalizing from small data in a principled way. Having incomplete information, we are forced to make some assumptions. Within the realm of \textit{parametric} statistics, we usually assume that the true data-generating process can be well described by some probability distribution $P_{\theta}$ parametrized by some parameters $\theta$. Therefore, given that the parametric model we impose on the data is correct, our aim is to \say{infer} the correct value of $\theta$. 
+Since we are only able to look at a sample (or samples) from the population, inference based on different samples brings to different inferences. Therefore, we also need a machinery to compute the uncertainty of our inference.
+Importantly, the frequentist approach to statistics assumes that in nature there exists a \say{true} \textbf{fixed} value of $\theta$. If we were able to collect all the information from the population then there would not be any uncertainty. Uncertainty, thus, arises only from the fact that our information set is limited. We will clarify with an example below.
+
+### Example: the Normal population
+We are interested in modelling the height of Italian citizens. First, we need to assume a parametric model that would describe the true data-generating process well. Since height is a continuous variable, a good parametric family of distributions to describe the phenomenon is the Normal distribution which models variable with support in $\mathbb{R}$\footnote{Well, let's pretend it is: this assumption is not truly justified since negative heights should have zero probability.}
+$$\mathcal{N}\left(\mu,\,\sigma^{2}\right)$$
+The problem is that there exists an infinite number of distribution in this family depending on the values of the parameters $(\mu, \sigma^2)$\footnote{Recall that for the Normal model $\mu\in(-\infty,+\infty)$ and $\sigma^2\in[0,+\infty)$.}. 
+
+Suppose we collect data from $n=6$ individuals randomly selected from all around Italy. We assume the observation are \textit{identically distributed}, namely they come from the same data generating process. Furthermore, the random sampling assures they are also independent
+$$X_1, \dots, X_6 \stackrel{\small i.i.d.}{\sim} \mathcal{N}\left(\theta, \sigma^2\right)$$ 
+In `R`, the data we get to observe are stored as a `data.frame` or as its modern counterpart: the `tibble`. Throughout this book we work with \say{tibbles} instead of R's traditional dataframes. In most places, we will use the term tibble and dataframe interchangeably; to draw particular attention to R's built-in dataframe, we will refer to them as `data.frame`s. 
+
+To estimate $\theta$ we would repeatedly extract a sample of size $n$ from the population and take its mean as a guess for the unknown parameter. That is, we compute a function of the data $T(X) = T(X_1, \dots, X_6) = \hat{\theta}$. The function $T$ is our __estimator__ that once \say{fed} with the data computes the estimate -- it is an algorithm that computes the values of interest. In this particular case, our algorithm to estimate $\theta$ is $\bar{X} = \frac{1}{n} \sum_{i=1}^{n} X_i$, the sample mean. This is a random variable because depending on the sample we apply this algorithm to its value changes. Thus, \textbf{repeated sampling} will give us different values of $\bar{X}$ and from the different results we can compute its \textit{sampling distribution}.
+
+We exploit R to do the computation without fatigue. Firstly, let's pretend we are the Natural hidden force that has produced the data: we know that $\theta=170$ and $\sigma^2=25$. We produce $m=1000$ i.i.d. samples, each of $n=6$ observation. The function `rnorm()` produces a sample from the normal distribution\footnote{Be careful: the function takes the standard deviation as input, not the variance.}.
+
+Let's build the tibble with the data of 1000 samples, each with 6 observation
+```{r create dataset}
+library(tidyverse)
+
+n <- 6
+m <- 1000
+mu <- 170
+sigma2 <- 25
+
+dataset <- tibble(Individual = 1:6)
+
+for (i in 1:m) {
+    sample_name = paste0('sample_', i)
+    dataset[sample_name] <- rnorm(n = 6, mean = 170, sd = sqrt(sigma2))
+}
+
+dataset[1:5] %>% 
+    knitr::kable(booktabs = T, align = 'c') 
+```
+
+Detailed explanation of the steps: 
+\begin{itemize}
+    \item Load the required packages
+    \item Set $n$ and $m$
+    \item Set the true values of $\mu$ and $\sigma^2$
+    \item Initialize the tibble with just one column referring to individuals' IDs
+    \item For each iteration:
+        \begin{itemize}
+            \item Create the column name of the new column of values of the i-th sample
+            \item Randomly generate observation from the normal distribution
+        \end{itemize}
+    \item For space reasons print only 5 columns of the tibble
+\end{itemize}
+
+Now we come back being the humble statistician willing to discover the inner secrets of Nature. Suppose we observe the $m$ samples of size $n$ -- to have $m$ samples is the core idea of repeated sampling. Since we want to estimate the mean parameter, as discussed above, we use the estimator $\bar{X}$. For each sample $m$ we would have a different value of $\bar{X}_n^{(m)}$. After having computed all these values we can study their \textit{empirical distribution}
+```{r sampling distribution of sample mean}
+dataset %>% 
+    select(-Individual) %>% 
+    map_df(mean) %>% 
+    gather() %>% 
+    ggplot(aes(x = value)) + 
+        geom_histogram(aes(y = ..density..)) +
+        geom_line(stat = 'density', colour = 'red', size = 1.5) +
+        labs(title = 'Sampling distribution of the sample mean',
+             y = 'Relative frequency')
+```
+Detailed explanation of the steps: 
+\begin{itemize}
+    \item Exclude column \texttt{Individuals} from the selection, select all the others
+    \item Compute the mean by column and return a tibble
+    \item Reshape the tibble from a $1\times m$ vector to a $m\times1$ vector for plotting
+    purposes
+    \item Plot the histogram were each bar represents the relative frequency of a small set
+    of values
+\end{itemize}
+
+Based on the idea of repeated sampling we hope that our one sample mean would provide us with some information -- consider that we get to observe only one sample, i.e. $m=1$! It is possible to show that the empirical sampling distribution we have computed and plotted above will tend to some probability density function as the number of samples $m$ grows 
+$$\bar{X}_n \sim \mathcal{N}\left(\theta, \frac{\sigma^2}{n}\right)$$
+Note that $E(\bar{X}) = \theta$.
+
+In the previous example we stored the samples in the columns of a tibble called `dataset` for clarity. With the number of simulation, $m$, increasing it is not efficient to keep all the simulated data and then compute a statistic per simulation. It is more efficient to create a sample, store it into a vector, compute the statistic and throw the vector away keeping in memory only the estimate. This will be the approach henceforth.
+
+
+
+## Estimators
+Suppose that the distribution of $X$ depends on an unknown parameter, so that the statistical model is of the form $\mathcal{P}=\left\{P_\theta, \theta\in\Theta \right\}$ for $P_\theta$ the distribution of $X$ if $\theta$ is the true parameter. Based on an observation $x$, we want to estimate the true value of $\theta$, or perhaps the value of a function $g(\theta)$ of $\theta$. Formally,
+\begin{displayquote}
+    \textbf{Estimator}: An estimator or statistic is a random vector $T(X)$ that depends only on the observation $X=x$. The corresponding estimate for an observation $x$ is $T(x)$
+\end{displayquote}
+By this definition, many objects are estimators. What matters is that $T(X)$ is a function of $X$ that does not depend on the parameter $\theta$: we must be able to compute $T(x)$ from the data $x$. Given the observed value $x$, the statistic $T$ is realized as $t = T(x)$, which is used as an estimate of $\theta$ (or $g(\theta)$). Before going into the details of the computations and characteristics of estimators, we define a framework that enable us to compare various estimators.
+
+
+### Mean Squared Error
+Although every function of the observation is an estimator, not every estimator is a good one. A good estimator of $\theta$, or $g(\theta)$, is a function $T$ of the observed data such that $T$ is \say{close} to the estimand, $\theta$ or $g(\theta)$. We could think about a distance measure, informally defined $d$, such that we evaluate the goodness of the estimator by this measure $d(T, g(\theta))$. However, such measure poses two ploblems:
+\begin{itemize}
+    \item It depends on $\theta$, which is unknown
+    \item It is stochastic and cannot be computed before seeing the data
+\end{itemize}
+To avoid the second difficulty, we can consider the \textit{distribution} of this distance under the assumption that $\theta$ is the true value. We thus look for an estimator whose distribution for the true value is concentrated as much as possible aroud $g(\theta)$ or, equivalently, the distribution of $d(T, g(\theta))$ is concentrated around 0.
+
+It is useful to express concentration as a number. One meausure of concentration is the \begin{displayquote}
+    \textbf{Mean Squared Error}: the MSE of an estimator $T$ for $g(\theta)$ is
+    $$\mathrm{MSE}(\theta;T) = \mathrm{E}_\theta\Vert T - g(\theta)\Vert^2$$
+\end{displayquote}
+The expectation depends on $\theta$, that is the subscript is essential since the MSE is the expected square deviation of $T$ from $g(\theta)$ under the assumption that $\theta$ is the true value of the parameter. 
+
+The first difficulty, i.e. the fact that the measure of quality depends on $\theta$, has not been addressed yet. The mean square error is a function of $\theta$. In principle, it suffices if MSE is as small as possible in the true value of the parameter. As we do not know that value, we try to keep the mean square error (relatively) small for \textit{all} values of $\theta$ at once: hence, the expectation.
+
+The MSE can be decomposed into a \textit{bias} and \textit{variance} component:
+$$\mathrm{MSE}(\theta;T) = \mathrm{Var}_\theta(T) + \left[\underbrace{\mathrm{E}_\theta(T) - g(\theta)}_{\mathrm{bias}}\right]^2$$
+The second term in the decomposition is therefore the square of the bias. The standard deviation $\mathrm{std}_\theta(T) = \sqrt{\mathrm{Var}_\theta(T)}$ of an estimator is also called the \textit{standard error}. This should not be confused with the standard deviation of the observations. In principle, the standard error depends on the unknown parameter and is therefore itself an unknown quantity.
+
+For an unbiased estimator, the bias term is identically 0. This seems very desirable, but it is not always the case. Namely, the condition that an estimator is unbiased can lead to the variance being very large. In general, a small variance leads to a large bias, and
+a small bias to a large variance. We must therefore balance the two terms against each
+other. It is important to note that, since the bias of reasonable estimators is usually small, the standard error often gives an idea of the quality of the estimator. An estimate of the standard error is often given along with the estimate itself.
+
+The criteria is readily served: between two estimators choose the one with smallest MSE or, equivalently, with smallest standard error and smallest bias.
+
+
+
+### Example: the Uniform distribution
+Let $X_1, \dots, X_n$ be independently distributed random variables $U[0, \theta]$. The i.i.d. observations are stored in the vector $X = (X_1, \dots, X_n)$, and we want to estimate the unknown $\theta$, the upper bound of the interval. Since $E_\theta X_i = \frac{1}{2}(\theta-0)$, it is reasonable to estimate $\frac{1}{2}\theta$ using the sample mean $\bar{X}$ and $\theta$ using $2\bar{X}$. Suppose that $n = 10$ and that the data have the following values: $x = (3.03, 2.70, 7.00, 1.59, 5.04, 5.92, 9.82, 1.11, 4.26, 6.96)$, so that $2\bar{x} = 9.49$. This estimate is certainly too small. Indeed, one of the observations is 9.82, so that we must have $\theta \geq 9.82$. We can avoid the problem we just mentioned by taking the maximum $X_{(n)}$ of the observations. However, the maximum is certainly also less than the true value, for all observations $x_i$ lying in the interval $[0, \theta]$. An obvious solution is to add a small correction. We could, for example, take $(n+2)/(n+1) X_{(n)}$ as estimator. 
+
+So there are several candidates. Which estimator is the best? To gain some insights into this question, we carry out the following simulation. Suppose the true $\theta$ is equal to 1. We choose $n = 50$ and simulated $m=1000$ i.i.d. samples from the uniform distribution on $[0, 1]$. We compute the estimators $T_1 = 2\bar{X}$ and $T_2 = (n + 2)/(n + 1)X_{(n)}$ and compare their MSE.
+```{r example uniform}
+n <- 50
+m <- 1000
+theta <- 1
+
+t_1 <- c()
+t_2 <- c()
+
+for (i in 1:m) {
+    sample <- runif(n, 0, theta)
+    t_1 <- c(t_1, 2*mean(sample)) 
+    t_2 <- c(t_2, ((n+1)/(n+2))*max(sample))
+} 
+
+simulation_data <- tibble(estimators = c(t_1, t_2),
+                          label = c(rep('T_1', m), rep('T_2', m)))
+
+simulation_data %>% 
+    ggplot(aes(x = estimators, fill = label)) +
+        geom_histogram(aes(y = ..density..), 
+                       alpha = 0.6, 
+                       binwidth = 0.01) + 
+        geom_line(aes(colour = label), stat = 'density') +
+        labs(x = 'Estimator value',
+             y = 'Frequency')
+```
+Detailed explanation of the steps: 
+\begin{itemize}
+    \item Define $n$, $m$, and $\theta$
+    \item Initialize the vectors that will contain the estimates
+    \item Generate samples from the uniform distribution
+    \item Compute the two statistics and store the values into the container defined at the 
+    previous step; our notation \texttt{c(old\_value, new\_value)} simply appends to the end of the
+    vector the new value
+    \item Create a 2-column tibble containing the $2m$-dimansional vector of labels
+    $[T_1,\dots,T_1, T_2, \dots, T_2]$ and the $2m$-dimansional vector of estimates
+    $[t_1^{(1)},\dots,t_1^{(m)}, t_2^{(1)},\dots,t_2^{(m)}]$
+    \item Plot the histogram by label where each bar represents the relative frequency of a
+    small set of values
+\end{itemize}
+
+Note that it is not true that the estimator $(n + 2)/(n + 1)X_{(n)}$ gives the best
+estimate on each of the 1000 samples. This can be seen in the next figure, where the
+difference $|(n + 2)/(n + 1)x_{(n)} - 1| - |2x - 1|$ is set out along the vertical axis. This kind of check is taken from @ims.
+In general, this difference is negative, but sometimes it is positive, in which case the
+estimator $2\bar{X}$ gives a value that is closer to the true value $\theta = 1$. Because in practice we do not know the true value, we must use the estimator that is the best _on average_.
+```{r}
+tibble(difference = abs(t_2 - theta) - abs(t_1 - theta),
+       index = 1:m) %>% 
+    ggplot(aes(x = index, y = difference)) +
+        geom_line() + 
+        geom_hline(yintercept = 0, colour = 'red', size = 1.5)
+```
+Detailed explanation of the steps: 
+\begin{itemize}
+    \item Create a tibble with two column: the index representing simply the position in the vector of the values and differences
+    \item Plot these differences
+\end{itemize}
+
+Our simulation experiment only shows that $(n + 2)/(n + 1)X_{(n)}$ is the better
+estimator if the true value of $\theta$ is equal to 1. To determine which estimator is better
+when $\theta$ has a different value, we would have to repeat the simulation experiment
+with simulated samples from the uniform distribution on $[0, \theta]$, for every $\theta$. This is not something very smart, of course, and that is one of the reasons to study
+estimation problems mathematically. Another problem with the simulation approach is that instead of ordering pairs of estimators, we would like to find the overall best estimator amongst many. This is the reason we introduced a framework to let us compare multiple estimators without performing any simulation. Let's compute the MSE for the two estimators using the approximation
+$$\mathrm{E}_\theta\left[T - g(\theta)\right]^2 \approx \frac{1}{m} \sum_{i=1}^{m} \left(t_n^{(i)} - g(\theta)\right)^2$$
+```{r}
+simulation_data %>% 
+    mutate(summand = (estimators - theta)^2) %>% 
+    group_by(label) %>% 
+    summarise(mse = mean(summand)) %>% 
+    knitr::kable(booktabs = T, align = 'c') 
+```
+Detailed explanation of the steps: 
+\begin{itemize}
+    \item Recall the tibble \texttt{simulation\_data} created above
+    \item Add a new column called \texttt{summand} by subtracting $\theta$ from each value (this is called braodcasting: when subtracting a scalar from a vector, R automatically performs the computation elementwise)
+    \item Group by label the computation that will follow
+    \item Compute the mean by group, that is compute the MSE
+    \item Pretty printing of the table
+\end{itemize}
+
+The results above confirm that, on average, estimator $(n + 2)/(n + 1)X_{(n)}$ performs better than $2\bar{X}$ in MSE sense.
+
+
+## From practise to theory
+Using R we can test empirically if some theoretical facts holds. The facts we want to check are:
+\begin{itemize}
+    \item Unbiasedness
+    \item Consistency 
+    \item Central Limit Theorem 
+\end{itemize}
+
+
+
+### Unbiasedness
+Suppose we have a sample of size $n$ from a parametric distribution $f_X(x;\theta)$, $X_1,\dots,X_n \stackrel{\small i.i.d.}{\sim} f_X(x;\theta)$. We want to learn about $\theta$ from the data. In order to do this, we use the data (a function of them) to estimate the unknowns. In general, we write this function of the data as $T = T(X_1,\dots,X_n)$. Obviously, this function of the data will have its own distribution because if the data change, its value changes too -- the idea of the _sampling distribution_. So $T \sim f_T(t;\theta)$. Now, we can define
+\begin{displayquote}
+    \textbf{Unbiasedness}: T is an unbiased estimator for $g(\theta)$ if $E(T) = g(\theta)$, for any function $g$.
+\end{displayquote}
+
+#### Example: Sample Mean
+Let's go back to the Normal example and prove empirically that the expected value of the sample mean equals the true mean, that is
+$$\mathrm{E}\left(\bar{X}_n\right) = \theta$$
+To verify empirically that the above holds, let's verify that the approximation $$\mathrm{E}\left(\bar{X}_n\right) \approx \frac{1}{m}\sum_{i=1}^{m} \bar{X}_{n}^{(i)}$$
+works. Recall that we simulated $m=1000$ sample of size $n$ from a Normal population. Therefore, we will compute the mean for each sample, $\bar{X}_{n}^{(i)}, \; i = 1,\dots,m$, obtaining an $m$-dimensional vector of means. Afterwards, we will compute the mean across these $m$ sample means to obtain an approximation of the expectation above. Hopefully, we will find a value in a small neighbourhood of 170, the true expected value of the distribution.
+
+```{r unbiasedness sample mean}
+dataset %>% 
+    select(-Individual) %>% 
+    map_df(mean) %>% 
+    gather() %>% 
+    extract2(2) %>% 
+    mean()
+```
+
+Description of the steps: 
+\begin{itemize}
+    \item Recall the tibble created above containing values from 1000 samples
+    \item Select every column except \texttt{Individuals} and compute the mean for each column
+    \item Reshape the tibble so that the first column contains the simulation number and the second column contains all means stacked as a column vector
+    \item Extract this second column
+    \item Compute the mean across all samples
+\end{itemize}
+
+Indeed, the value is close to the true expectation, i.e. as the number of repeated samples grows, the approximation will be closer and closer to the true value.
+
+
+
+#### Example: Sample Variance
+Let's continue with the Normal example and evaluate empirically two different estimator of the variance
+$$\tilde{S}^2 = \frac{1}{n} \sum_{i=1}^{n} \left(X_i - \bar{X}\right)^2$$
+$$S^2 = \frac{1}{n-1} \sum_{i=1}^{n} \left(X_i - \bar{X}\right)^2$$
+
+We know that
+$$\mathrm{E}\left(S^2\right) = \sigma^2$$
+that is $S^2$ is unbiased, while 
+$$\mathrm{E}\left(\tilde{S}^2\right) = \frac{n-1}{n} \sigma^2$$
+thus it is biased. Let's check which one is the best in the MSE sense
+
+```{r}
+s2 <- c()
+s2tilde <-c()
+
+for (i in 1:m) {
+    sample <- rnorm(n, mu, sqrt(sigma2))
+    sample_mean <- mean(sample)
+    summand <- sum((sample - sample_mean)^2)
+    s2 <- c(s2, (1/(n-1))*summand)
+    s2tilde <- c(s2tilde, (1/n)*summand) 
+} 
+
+var_simulation_data <- tibble(estimators = c(s2, s2tilde),
+                              label = c(rep('S2', m), rep('S2tilde', m)))
+
+var_simulation_data %>%
+    ggplot(aes(x = estimators, fill = label)) +
+    geom_histogram(aes(y = ..density..),
+                   alpha = 0.6,
+                   binwidth = 0.5) +
+    geom_line(aes(colour = label), stat = 'density', size = 1.2) +
+    labs(x = 'Estimator value',
+         y = 'Frequency')
+```
+
+Detailed explanation of the steps: 
+\begin{itemize}
+    \item Reuse $n$, $m$, $\mu$, and $\sigma^2$ defined above
+    \item Initialize the vectors that will contain the estimates
+    \item Generate samples from the normal distribution
+    \item Compute the two statistics and store the values into the container defined at the previous step
+    \item Create a 2-column tibble containing the $2m$-dimansional vector of labels $[S^2,\dots,S^2, \tilde{S}^2, \dots, \tilde{S}^2]$ and the $2m$-dimansional vector of estimates $[s_{(1)}^2,\dots,s_{(m)}^2, \tilde{s}_{(1)}^2,\dots,\tilde{s}_{(m)}^2]$
+    \item Plot the histogram by label where each bar represents the relative frequency of a small set of values
+\end{itemize}
+
+Using the usual approximation for the expectation, let's compare the MSE of the two estimators and their bias and variance
+```{r}
+var_simulation_data %>% 
+    mutate(summand = (estimators - sigma2)^2) %>% 
+    group_by(label) %>% 
+    summarise(mse = mean(summand), 
+              bias = mean(estimators) - sigma2,
+              variance = sd(estimators)^2) %>% 
+    knitr::kable(booktabs = T, align = 'c') 
+```
+We can see that in this case the MSE is slighlty better for $\tilde{S}^2$. However, note how much the bias of $S^2$ is smaller than the bias of $\tilde{S}^2$: almost 10 times so! 
+
+
+
+
+### Consistency
+When simulating, we can move along two dimensions: 
+\begin{itemize}
+    \item Varying the number of samples $m$
+    \item Varying the sample size $n$
+\end{itemize}
+In this section, we fix $m = 1$, that is we confront reality: although fascinating, the idea of repeated sampling is not in general feasible. Usually, we have only one sample and we use the \textit{one} value $\bar{X}_n$ as our guess for $\theta$.
+
+Another good \say{quality}, perhaps the most important, that an estimator $T$ should have is 
+\begin{displayquote}
+    \textbf{Consistency}: An estimator $T$ is consistent for $g(\theta)$ if $T \xrightarrow{P} g(\theta)$, for any $g$, that is if $T$ converges in probability to $g(\theta)$.
+\end{displayquote}
+Convergence in probability could be formally expressed as follows
+\begin{displayquote}
+    \textbf{Convergence in Probability}: A sequence of random variables $T_n$, with $n \geq 1$, is said to converge in probability to a number $\theta$ as $n\to\infty$ if and only if for any $\varepsilon\geq 0$, 
+    \begin{align*}
+        P(T \notin [\theta - \varepsilon,\theta + \varepsilon]) & \xrightarrow{n\to\infty} 0
+        \intertext{or, equivalently}
+        P(|T-\theta|>\varepsilon) & \xrightarrow{n\to\infty} 0
+    \end{align*}
+\end{displayquote}
+We can prove consistency indirectly, proving convergence in quadratic mean.
+\begin{displayquote}
+    \textbf{Convergence in quadratic mean}: A sequence of random variables $T_n$, with $n \geq 1$, is said to converge in quadratic mean to a number $\theta$ if and only if
+    \begin{align*}
+        \lim_{n\to\infty} \mathrm{E}(T_n) &= \theta \\
+        \lim_{n\to\infty} \mathrm{Var}(T_n) &= 0
+    \end{align*}
+\end{displayquote}
+Below we will show, using the usual approximations for the expectations, that this is the case for the sample mean of a normally distributed sample. In other words, we will show that the sample mean converges in quadratic mean to the true mean as the sample size grows.
+
+#### Example: Sample mean
+In principle we would write a nested loop, something like
+```{r, eval=FALSE, highlight=FALSE}
+# pseudo-code
+sizes = (10, 20, ..., 10000)
+m = 100
+
+for n in sizes:
+    for i in 1:m:
+        generate sample of size n
+        compute sample mean        
+        store value of sample mean
+    compute mean of the m sample means obtained in the previous loop
+    store value of the mean
+    compute variance of the m sample means
+    store value
+end loop
+
+plot everything
+```
+
+However, R is not efficient in performing loops! Therefore, make the code run faster we have to use a little bit of theory to come up with an idea.
+
+In particular, we will generate for each $n$ a sample of size $n \times m$, and then we will compute its mean:
+$$\frac{1}{m} \sum_{j=1}^{m} \left[\frac{1}{n} \sum_{i=1}^{n} X_i \right]_j = \frac{1}{nm} \sum_{i = 1}^{nm} X_i$$
+and its variance. In other words, for each sample size $n$, we generate $m$ sample of that size. This will give us $m$ sample means. Computing the mean of these sample means approximates the quantity $\mathrm{E}(\bar{X}_n)$.
+```{r mean of sample mean}
+mu <- 170
+sigma2 <- 25
+m <- 10^2
+sizes <- seq(from=10, to=10^4, by = 10)
+
+sample_mean <- c()
+var_sample_mean <- c()
+
+for(n in sizes) {
+    sample <- rnorm(n*m, mu, sqrt(sigma2))
+    sample_mean <- c(sample_mean, mean(sample)) 
+    var_sample_mean <- c(var_sample_mean, sd(sample)/n*m)
+} 
+
+tibble(size = sizes, sample_mean = sample_mean) %>% 
+    ggplot(aes(x = size, y = sample_mean)) +
+        geom_line() + 
+        geom_hline(yintercept = mean(sample_mean), 
+                   colour = "red", 
+                   size = 1.5) +
+        labs(x = "Sample size",
+             y = "Mean of the sample mean")
+```
+
+Description of the steps: 
+\begin{itemize}
+    \item Create a tibble where each row refers to the sample size for which we perform the experiment
+    \item Create an empty vector to store the values of the sample mean for each sample size used
+    \item Randomly generate iid samples from the true normal distribution, each time of different size
+    \item Add the vector of means into the dataframe \texttt{samples} 
+    \item Plot the resulting sample means associated to the respective sample sizes
+\end{itemize}
+
+Indeed we see that as the sample size grows the mean of the sample mean is more concentrated around the true value. 
+
+```{r variance of sample mean}
+tibble(size = sizes, var_sample_mean = var_sample_mean) %>% 
+    ggplot(aes(x = size, y = var_sample_mean)) +
+        geom_line() + 
+        labs(x = "Sample size",
+             y = "Variance of the sample mean")
+```
+
+Description of the steps: 
+\begin{itemize}
+    \item Reuse the tibble \texttt{sample} where each row of \texttt{size} refers to the sample size for which we perform the experiment
+    \item Create an empty vector to store the values of the variance of the sample mean for each sample size used
+    \item Randomly generate iid samples from the true normal distribution, each time of different size
+    \item Add the vector of variances into the dataframe \texttt{samples} 
+    \item Plot the resulting sample means associated to the respective sample sizes
+\end{itemize}
+
+
+
+Let's prove that the sample mean is consistent using the definition. That is, we draw a sample of size $n$, $m$ times for each sample size $n$, so that we obtain an $m$-dimensional vector of sample means computed on a sample of size $n$. In this way, for each sample size $n$ we can count how many times the sample mean falls into the neighbourhood of the true value.
+```{r}
+epsilon <- 0.1
+mu <- 170
+sigma2 <- 25
+m <- 10^2
+sizes <- seq(from=10, to=10^4, by = 100)
+
+perc_inside <- c()
+
+for(n in sizes) {
+    sample_mean <- c()
+
+    for (i in 1:m) {
+        sample <- rnorm(n, mu, sqrt(sigma2))
+        sample_mean <- c(sample_mean, mean(sample)) 
+    }
+    
+    inside_interval <- abs(sample_mean - mu) < epsilon
+    perc_inside <- c(perc_inside, 
+                     sum(inside_interval)/length(inside_interval))
+} 
+
+tibble(size = sizes, perc_inside = perc_inside) %>% 
+    ggplot(aes(x = sizes, y = perc_inside)) +
+        geom_line() +
+        labs(y = 'Prob. T inside the interval',
+             x = 'Sample sizes')
+```
+Description of the steps: 
+\begin{itemize}
+    \item Fix $\varepsilon \geq 0$, $n$, $m$, $\mu$, and $\sigma^2$
+    \item Initialize the container for the probabilities of being inside the interval
+    \item For each sample size $n$ in the vector of sample sizes, \texttt{sizes}, perform the following steps: 
+            \begin{itemize}
+                \item Initialize the containers for the sample mean that will be overwritten at each iteration for more efficient memory usage
+                \item Generate $m$ samples of size $n$
+                \item Compute the mean of the sample
+            \end{itemize}
+        \item Evaluate the logical condition $|T_n - \theta|<\varepsilon$ for each component of the vector of sample means
+    \item Since \texttt{TRUE} in R is stored as a 1, summing the component of the vector will give us the total number of sample means, computed on a sample of size $n$, in the vector that are inside the interval; dividing for the total number of sample means in the vector gives us the proportion of sample means inside the interval
+    \item Plot the results
+\end{itemize}
+
+
+What we observe is that, indeed, as the sample size increases, the probability of the sample mean to be in a neightbourhood of the true value increases. Thus, this experiment confirms the results obtained above.
+
+
+
+### Central limit theorem
+
+The CLT establishes that when independent random variables are added, their properly normalized sum tends toward a normal distribution even if the original variables themselves are not normally distributed. The theorem is a key concept in probability theory because it implies that probabilistic and statistical methods that work for normal distributions can be applicable to many problems involving other types of distributions; that is why the normal distribution is such an important topic in each statistics course.
+
+In other words, CLT is a statement about the \textbf{shape} of the distribution. A normal distribution is bell shaped so the shape of the distribution of sample means begins to look bell shaped as the sample size increases even if the samples are drawn from an arbitrary distribution.
+
+To empirically validate such fact, we will simulate data from the bernoulli distribution, $Ber(p)$. Recall that a bernoulli distribution describes a random experiment with exactly two possible outcomes, \say{success} and \say{failure}, in which the probability of success is the same every time the experiment is conducted. If we sample from the bernoulli distribution $n$ times, e.g. $n=10$, it would look like $X = (0, 1, 1, 1, 1, 0, 1, 1, 1, 0)$, where $1$ stands for \say{success}. We will compute their sample means and see how they behave when $n$ grows. Our goal is to make inference on the parameter $p$, the probability of \say{success} which is also the expected value of a bernoulli random variable, that is if $X_i \sim Ber(p)$ then $E(X_i) = p$. Suppose the true $p$ is $1/2$.
+
+In R we use the function \texttt{rbinom(n, size, prob)} with \texttt{n} being the number the sample size; \texttt{size} can be ignored since it is used to define the binomial distribution; and \texttt{prob} being the probability of success in each experiment. Therefore to have a bernoulli sample with $n=10$ use $\texttt{n} = 10$, $\texttt{size} = 1$. If you increase \texttt{size}, each draw contains 10 bernoulli experiments, and you sum their results to obtain the draw from the binomial distribution.
+We now prove that as the number of bernoulli trials in each sample grows, the distribution of the bernoulli samples tends to a normal distribution.
+
+```{r}
+p <- 1/2
+n <- 100
+m <- 10^3
+sample_mean <- c()
+
+for (i in 1:m) {
+    sample <- rbinom(n, 1, p)
+    sample_mean <- c(sample_mean, mean(sample))
+} 
+
+tibble(sample = rbinom(m, 1, p), sample_mean = sample_mean) %>% 
+    ggplot() +
+        geom_histogram(aes(x = sample, y = ..density..),
+                       alpha = 0.6,
+                       binwidth = 0.2,
+                       fill = '#E69F00') +
+        geom_histogram(aes(x = sample_mean, y = ..density..),
+                       alpha = 0.6,
+                       binwidth = 0.01,
+                       fill = '#56B4E9') +
+        geom_line(aes(x = sample_mean), stat = 'density', size = 0.6) +
+        labs(y = 'Empirical distribution', x = '', title = 'Bernoulli')
+```
+We perform the same experiment for the Poisson distribution whose parameter is $\lambda$.
+```{r}
+lambda <- 1
+n <- 100
+m <- 10^3
+sample_mean <- c()
+
+for (i in 1:m) {
+    sample <- rpois(n, lambda)
+    sample_mean <- c(sample_mean, mean(sample))
+} 
+
+tibble(sample = rpois(m, lambda), sample_mean = sample_mean) %>% 
+    ggplot() +
+        geom_histogram(aes(x = sample, y = ..density..),
+                       alpha = 0.6,
+                       binwidth = 0.2,
+                       fill = '#E69F00') +
+        geom_histogram(aes(x = sample_mean, y = ..density..),
+                       alpha = 0.6,
+                       binwidth = 0.05,
+                       fill = '#56B4E9') +
+        geom_line(aes(x = sample_mean), stat = 'density', size = 0.6) +
+        labs(y = 'Empirical distribution', x = '', title = 'Poisson')
+```
+And we perform again the experiment for the uniform distribution
+```{r}
+m <- 10^3
+sample_mean <- c()
+
+for (i in 1:m) {
+    sample <- runif(n)
+    sample_mean <- c(sample_mean, mean(sample))
+} 
+
+tibble(sample = runif(m), sample_mean = sample_mean) %>% 
+    ggplot() +
+        geom_histogram(aes(x = sample, y = ..density..),
+                       alpha = 0.6,
+                       binwidth = 1,
+                       fill = '#E69F00') +
+        geom_histogram(aes(x = sample_mean, y = ..density..),
+                       alpha = 0.6,
+                       binwidth = 0.01,
+                       fill = '#56B4E9') +
+        geom_line(aes(x = sample_mean), stat = 'density', size = 0.6) +
+        labs(y = 'Empirical distribution', x = '', title = 'Uniform')
+```
+Description of the steps (apart from the distribution we sample from they are equal for all the 3 experiments above): 
+\begin{itemize}
+    \item Set the parameters
+    \item Initialize the container for the sample means
+    \item Sample $m$ times from the distribution of choice and compute the mean
+    \item Sample from the distribution $m$ observations and bind it with the sample means computed at the previous step to create a tibble
+    \item Plot
+\end{itemize}
+
+
+As we can assess from the graphs, the sample mean indeed tends to be distributed as a normal random variable. 
+
+
+## Maximum Likelihood Estimator
+We have now shown in general some properties of an estimator and how to compare and evaluate their goodness. But, how do we actually find an estimator? Imagine we do not know that the sample mean is a \say{good} estimator for the mean of a normal distribution, how do we find one?
+
+The __maximum likelihood__ estimation method is the most common method to find estimators for an unknown parameter. Since, as the name suggests, the way to find the estimator is maximize a likelihood, we need a formal definition of likelihood.
+\begin{displayquote}
+    \textbf{Likelihood function}: Let $X$ be a random vector with probability density $p_\theta$ that depends on a parameter $\theta\in\Theta$. For $x$ fixed, the function $L(\theta:x) := p_\theta(x)$, seen as a function of $\theta\in\Theta$ (where $\Theta$ is the parameter space), is called the likelihood function.
+\end{displayquote}
+Often, $X = (X_1, \dots, X_n)$ is drawn iid. When this is the case the density of $X=x$ is then equal to the product $\prod_{i=1}^{n}p_\theta(x_i)$ of the marginal probability densities of $X_1,\dots, X_n$, and the likelihood function is equal to 
+$$L(\theta:x_1,\dots,n) = \prod_{i=1}^{n}p_\theta(x_i)$$
+We can now define the maximum likelihood estimator and estimate
+\begin{displayquote}
+    \textbf{Maximum Likelihood Estimate}: The maximum likelihood estimate of $\theta$ is the value of $T(x)\in\Theta$ that maximizes the likelihood function $L(\theta; x_1,\dots,x_n)$. The maximum likelihood estimator is the corresponding estimator $T(X)$.
+\end{displayquote}
+In the case of a discrete probability distribution, the maximum likelihood estimate can be described as the value of the parameter that assigns the greatest probability to the observed value $x$: we maximize the probability mass $p_\theta(x) = P_\theta(X = x)$ with respect to $\theta$ for fixed $x$. This method is only _a_ method to obtain estimates: maximum likelihood estimators are not necessarily the best estimators. By a \say{best} estimator, we mean an estimator with the smallest possible mean square error. For a given model, computing the maximum likelihood estimators is a matter of applying calculus: differentiate the likelihood function and set the derivatives equal to 0. A trick that limits the necessary calculations (especially with independent observations) is to first take the logarithm of the likelihood. Because the logarithm is a monotone function, the value $\theta$ that $\log L(\theta;x)$ is the same that maximizes $L(\theta; x)$. (Note that we are speaking only of the value where the maximum is reached, the argmax, not of the maximum value. For fixed $x$, the log-likelihood function is given by
+$$\log L(\theta;x) = \log p_\theta(x) = \sum_{i=1}^{n} \log p_\theta(x_i)$$
+
+If $L$ is differentiable in $\theta\in\Theta\subset\mathbb{R}^k$ then
+$$\frac{\partial}{\partial \theta_j} \log L(\theta;x)_{|\theta=\hat{\theta}} = 0, \quad j=1,\dots,k$$
+This system cannot always be solved explicitly. If necessary, an iterative method is used to obtain an approximation of the solution -- e.g. Newton-Raphson method. Not only maxima, but also minima and inflection points are solutions of the likelihood equations. To verify whether a solution is indeed a maximum, we must consider the form of the (log-)likelihood function. One way to do this, is to determine the second derivative (or the Hessian matrix if the parameter has dimension greater than 1) of the log-likelihood function in the solution. If the function has a maximum in the solution, the second derivative in that point will be negative. For higher-dimensional parameters, all eigenvalues of the Hessian matrix must be negative. Note that he derivative of $\log L$ is called the _score function_ and is the sum of the score functions of the individual observations.
+
+We will now compute \say{manually} the maximum likelihood estimate of the normal distribution we work with so far. Of course there are many routines already available in R to do this, but to build one from scratch at least once can be very useful. Since R is provided with a very good minimizer called `optim`, we will consider the negative log-likelihood _NLL_, $-L(\theta;x)$. The argmin is what we are after now.
+Below we define a function that computes the sum of the individual log-likelihoods
+$$\sum_{i=1}^{n}\log\left(\frac{1}{\sqrt{2\pi}\sigma}\right) \exp\left\{-\frac{(x_i - \mu)^2}{2\sigma^2}\right\}$$
+```{r}
+neg_loglik <- function(data, mu, sd) {
+    loglik = 0
+    for (x_i in data) {
+        loglik = loglik + 
+            log( 1 / (sqrt(2*pi)*sd) ) * 
+                exp( -(x_i - mu)^2 / 2*sd^2)
+    }
+    # note that we take the opposite 
+    nll = -loglik
+    return(nll)
+}
+```
+Now that we have a way to compute the log-likelihood of the data, i.e. an objective function to optimize, let's perform the optimization. `optim` minimises a function by varying its parameters. The first argument of optim are the parameters with respect to we want to minimize the function -- in our case $\mu$. The second argument is the function to be minimised -- in our case the negative of `loglik`, i.e. `nll`. The tricky bit is to understand how to apply optim to the data. The solution is the `...` argument in optim, which allows us to pass other arguments, in the specific case our data `data=x` and `variance = sigma2` samples from the normal distribution. To distinguish between the true value of the mean used to generate the sample and the unknown value of the mean that we want to estimate, we will refer to this estimand as $\theta$
+```{r}
+mu <- 170
+sigma2 <- 25
+n <- 100
+
+x <- rnorm(n, mu, sqrt(sigma2))
+theta <- rnorm(1, mu, sqrt(sigma2))
+
+optimization <- optim(par = theta, 
+                      fn = neg_loglik,
+                      data = x,
+                      sd = sqrt(sigma2), 
+                      method = 'L-BFGS-B',
+                      lower = -Inf,
+                      upper = +Inf)
+
+```
+Description of the steps:
+\begin{itemize}
+    \item Define the parameters $n, \mu, \sigma^2$
+    \item Generate the sample
+    \item Initialize the value of $\theta$ to a random value extracted from the same distribution
+    \item Perform the optimization; note how the argument of \texttt{neg\_loglik} are passed as additional arguments of optim
+\end{itemize}
+
+The two important output of optim are `convergence` that needs to be 0 to signal that the optimizer as converged to a minimum, and `par` which is the estimate. In our case, optim has converged to `r optimization$par`.
+
+
+

@@ -1,0 +1,57 @@
+--- 
+title: "Statistical concepts with R"
+author: "Pietro Lesci"
+date: "01 January 2019"
+output: pdf_document
+documentclass: book
+classoption: openany
+fontsize: 12pt
+geometry: margin=3.5cm
+header-includes:
+- \usepackage[utf8]{inputenc}
+- \usepackage{amsmath}
+- \usepackage{amsfonts}
+- \usepackage{csquotes}
+- \usepackage{dirtytalk}
+- \usepackage{graphicx}
+bibliography:
+- biblio.bib
+biblio-style: apalike
+---
+
+```{r setup, include=FALSE}
+set.seed(1994)
+library(ggplot2)
+theme_update(axis.title = element_text(size = 14),
+             axis.text = element_text(size = 12))
+#             title = element_text(size = 15))
+
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  ifelse(options$size != "normalsize", paste0("\\", options$size,"\n\n", x, "\n\n \\normalsize"), x)
+})
+
+options(digits = 6)
+knitr::opts_chunk$set(
+  dev = "pdf",
+  use.highlight = TRUE,
+  comment = "#>",
+  collapse = TRUE,
+  cache = TRUE,
+  out.width = "80%",
+  fig.align = "center",
+  fig.width = 6,
+  fig.asp = 0.618,  # 1 / phi
+  fig.show = "hold",
+  message = FALSE,
+  warning = FALSE,
+  highlight = TRUE,
+  size = "small"
+)
+
+```
+
+# Preface {-}
+
+In this book we will show the mechanics of statistical procedures and the practical intuition behind theoretical concept using R. This is not a book about data analysis, however we will make use of some modern R packages that have been developed for those applications. Thanks to these packages R is living a shining period in the data science universe amongst the best choices to perform data science tasks - and \say{almost surely} it will give you a job!

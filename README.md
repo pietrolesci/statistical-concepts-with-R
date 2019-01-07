@@ -1,2 +1,4 @@
 # Thesis
-This repository includes the versions of the Thesis (work-in-progress) and the code to implement the models therein.
+This repository includes the file necessary to create the book "Statistical Concept with R". It is the result of an in-depth curricular course.
+
+Each chapter includes code and text. The root file is "index.Rmd".
